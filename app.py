@@ -18,55 +18,67 @@ def _parse_args() -> argparse.Namespace:
     add_parser.add_argument(
         "--temp", required=True, type=float, help="Temperatura observada no dia"
     )
+    add_parser.add_argument("--city", default="", help="Nome da cidade (opcional)")
 
-    subparsers.add_parser("recommend", help="Gera recomendacao para o proximo dia")
-    subparsers.add_parser("history", help="Mostra o historico salvo")
+    recommend_parser = subparsers.add_parser("recommend", help="Gera recomendacao para o proximo dia")
+    recommend_parser.add_argument("--city", default="", help="Nome da cidade (opcional)")
+
+    history_parser = subparsers.add_parser("history", help="Mostra o historico salvo")
+    history_parser.add_argument("--city", default="", help="Nome da cidade (opcional)")
 
     return parser.parse_args()
 
 
-def _print_history() -> None:
-    records = list_temperature_records()
+def _print_history(city: str = "") -> None:
+    city_filter = city if city else None
+    records = list_temperature_records(city=city_filter)
     if not records:
-        print("Historico vazio. Use o comando 'add' para registrar temperaturas.")
+        city_msg = f" para '{city}'" if city else ""
+        print(f"Historico vazio{city_msg}. Use o comando 'add' para registrar temperaturas.")
         return
 
-    print("Historico de temperaturas:")
+    city_label = f" ({city})" if city else ""
+    print(f"Historico de temperaturas{city_label}:")
     for rec in records:
-        print(f"- {rec.day.isoformat()}: {rec.temperature:.1f} C")
+        city_info = f" [{rec.city}]" if rec.city else ""
+        print(f"- {rec.day.isoformat()}: {rec.temperature:.1f} C{city_info}")
 
 
-def _print_recommendation() -> None:
-    records = list_temperature_records()
+def _print_recommendation(city: str = "") -> None:
+    city_filter = city if city else None
+    records = list_temperature_records(city=city_filter)
     recommendation = generate_recommendation(records)
 
+    if city:
+        print(f"Cidade: {city}")
     print(f"Proximo dia: {recommendation.next_day}")
     print(f"Temperatura prevista: {recommendation.predicted_temperature:.1f} C")
     print(f"Confianca: {recommendation.confidence}")
     print(f"Recomendacao: {recommendation.summary}")
 
 
-def _handle_add(day_text: str, temperature: float) -> None:
+def _handle_add(day_text: str, temperature: float, city: str = "") -> None:
     try:
         parsed_day = date.fromisoformat(day_text)
     except ValueError as exc:
         raise SystemExit("Data invalida. Use o formato AAAA-MM-DD.") from exc
 
-    add_temperature_record(parsed_day, temperature)
-    print(f"Registro salvo: {parsed_day.isoformat()} -> {temperature:.1f} C")
+    add_temperature_record(parsed_day, temperature, city=city)
+    city_info = f" [{city}]" if city else ""
+    print(f"Registro salvo: {parsed_day.isoformat()} -> {temperature:.1f} C{city_info}")
     print("\nNova recomendacao com base no historico atualizado:")
-    _print_recommendation()
+    _print_recommendation(city=city)
 
 
 def main() -> None:
     args = _parse_args()
 
     if args.command == "add":
-        _handle_add(day_text=args.day, temperature=args.temp)
+        _handle_add(day_text=args.day, temperature=args.temp, city=args.city)
     elif args.command == "history":
-        _print_history()
+        _print_history(city=args.city)
     elif args.command == "recommend":
-        _print_recommendation()
+        _print_recommendation(city=args.city)
 
 
 if __name__ == "__main__":
