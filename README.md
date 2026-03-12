@@ -24,7 +24,7 @@ PrevisIA e um projeto Python que registra temperaturas diarias e gera uma recome
 
 Registrar temperatura de um dia:
 
-python app.py add --day 2026-03-10 --temp 28.4
+python app.py add --day 2026-03-10 --temp 28.4 --city curitiba
 
 Gerar recomendacao para o proximo dia com base no historico:
 
