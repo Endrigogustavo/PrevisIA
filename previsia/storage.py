@@ -14,6 +14,7 @@ class TemperatureRecord:
     day: date
     temperature: float
     city: str = ""
+    humidity: float | None = None
 
 
 def _ensure_data_file(file_path: Path) -> None:
@@ -21,7 +22,7 @@ def _ensure_data_file(file_path: Path) -> None:
     if not file_path.exists():
         with file_path.open("w", newline="", encoding="utf-8") as csv_file:
             writer = csv.writer(csv_file)
-            writer.writerow(["day", "temperature", "city"])
+            writer.writerow(["day", "temperature", "city", "humidity"])
 
 
 def list_temperature_records(
@@ -35,11 +36,14 @@ def list_temperature_records(
         reader = csv.DictReader(csv_file)
         for row in reader:
             record_city = row.get("city", "")
+            raw_humidity = row.get("humidity", "")
+            humidity = float(raw_humidity) if raw_humidity else None
             records.append(
                 TemperatureRecord(
                     day=date.fromisoformat(row["day"]),
                     temperature=float(row["temperature"]),
                     city=record_city,
+                    humidity=humidity,
                 )
             )
 
@@ -54,15 +58,16 @@ def _write_records(
 ) -> None:
     with file_path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow(["day", "temperature", "city"])
+        writer.writerow(["day", "temperature", "city", "humidity"])
         for item in sorted(records, key=lambda rec: rec.day):
-            writer.writerow([item.day.isoformat(), f"{item.temperature:.2f}", item.city])
+            humidity_val = f"{item.humidity:.1f}" if item.humidity is not None else ""
+            writer.writerow([item.day.isoformat(), f"{item.temperature:.2f}", item.city, humidity_val])
 
 
 def add_temperature_record(
-    day: date, temperature: float, city: str = "", file_path: Path = DEFAULT_DATA_FILE
+    day: date, temperature: float, city: str = "", humidity: float | None = None, file_path: Path = DEFAULT_DATA_FILE
 ) -> None:
     records = list_temperature_records(file_path)
     filtered_records = [rec for rec in records if not (rec.day == day and rec.city.lower() == city.lower())]
-    filtered_records.append(TemperatureRecord(day=day, temperature=temperature, city=city))
+    filtered_records.append(TemperatureRecord(day=day, temperature=temperature, city=city, humidity=humidity))
     _write_records(filtered_records, file_path)

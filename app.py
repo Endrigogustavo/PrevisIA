@@ -18,6 +18,11 @@ def _parse_args() -> argparse.Namespace:
     add_parser.add_argument(
         "--temp", required=True, type=float, help="Temperatura observada no dia"
     )
+    add_parser.add_argument(
+        "--humidity",
+        type=float,
+        help="Umidade do ar observada no dia, em porcentagem",
+    )
     add_parser.add_argument("--city", default="", help="Nome da cidade (opcional)")
 
     recommend_parser = subparsers.add_parser("recommend", help="Gera recomendacao para o proximo dia")
@@ -41,7 +46,10 @@ def _print_history(city: str = "") -> None:
     print(f"Historico de temperaturas{city_label}:")
     for rec in records:
         city_info = f" [{rec.city}]" if rec.city else ""
-        print(f"- {rec.day.isoformat()}: {rec.temperature:.1f} C{city_info}")
+        humidity_info = (
+            f" | umidade: {rec.humidity:.1f}%" if rec.humidity is not None else ""
+        )
+        print(f"- {rec.day.isoformat()}: {rec.temperature:.1f} C{city_info}{humidity_info}")
 
 
 def _print_recommendation(city: str = "") -> None:
@@ -53,19 +61,34 @@ def _print_recommendation(city: str = "") -> None:
         print(f"Cidade: {city}")
     print(f"Proximo dia: {recommendation.next_day}")
     print(f"Temperatura prevista: {recommendation.predicted_temperature:.1f} C")
+    if recommendation.predicted_humidity is not None:
+        print(f"Umidade prevista: {recommendation.predicted_humidity:.1f}%")
+    if recommendation.apparent_temperature is not None:
+        print(f"Sensacao termica estimada: {recommendation.apparent_temperature:.1f} C")
     print(f"Confianca: {recommendation.confidence}")
     print(f"Recomendacao: {recommendation.summary}")
 
 
-def _handle_add(day_text: str, temperature: float, city: str = "") -> None:
+def _handle_add(
+    day_text: str,
+    temperature: float,
+    city: str = "",
+    humidity: float | None = None,
+) -> None:
     try:
         parsed_day = date.fromisoformat(day_text)
     except ValueError as exc:
         raise SystemExit("Data invalida. Use o formato AAAA-MM-DD.") from exc
 
-    add_temperature_record(parsed_day, temperature, city=city)
+    if humidity is not None and not 0 <= humidity <= 100:
+        raise SystemExit("Umidade invalida. Use um valor entre 0 e 100.")
+
+    add_temperature_record(parsed_day, temperature, city=city, humidity=humidity)
     city_info = f" [{city}]" if city else ""
-    print(f"Registro salvo: {parsed_day.isoformat()} -> {temperature:.1f} C{city_info}")
+    humidity_info = f" | umidade: {humidity:.1f}%" if humidity is not None else ""
+    print(
+        f"Registro salvo: {parsed_day.isoformat()} -> {temperature:.1f} C{city_info}{humidity_info}"
+    )
     print("\nNova recomendacao com base no historico atualizado:")
     _print_recommendation(city=city)
 
@@ -74,7 +97,12 @@ def main() -> None:
     args = _parse_args()
 
     if args.command == "add":
-        _handle_add(day_text=args.day, temperature=args.temp, city=args.city)
+        _handle_add(
+            day_text=args.day,
+            temperature=args.temp,
+            city=args.city,
+            humidity=args.humidity,
+        )
     elif args.command == "history":
         _print_history(city=args.city)
     elif args.command == "recommend":
